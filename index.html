@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telefon Hız Testi</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        button { padding: 10px 20px; font-size: 18px; margin-top: 20px; }
+        #results { margin-top: 20px; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>Telefon Hız Testi</h1>
+    <button onclick="testPerformance()">Hızı Ölç</button>
+    <div id="results"></div>
+
+    <script>
+        function testPerformance() {
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "Test yapılıyor... Lütfen bekleyin.";
+
+            setTimeout(() => {
+                // **CPU Performans Testi**
+                let startCpu = performance.now();
+                for (let i = 0; i < 1e7; i++) { Math.sqrt(i); }
+                let endCpu = performance.now();
+                let cpuSpeed = (10000 / (endCpu - startCpu)).toFixed(2);
+
+                // **RAM Testi (Büyük Dizi İşleme)**
+                let startRam = performance.now();
+                let arr = new Array(1e6).fill(0).map((_, i) => i * 2);
+                let endRam = performance.now();
+                let ramSpeed = (1000 / (endRam - startRam)).toFixed(2);
+
+                // **Grafik Performansı (Render Testi)**
+                let canvas = document.createElement("canvas");
+                let ctx = canvas.getContext("2d");
+                let startGpu = performance.now();
+                for (let i = 0; i < 1000; i++) {
+                    ctx.fillStyle = `rgb(${i % 255}, ${i * 2 % 255}, ${i * 3 % 255})`;
+                    ctx.fillRect(0, 0, 100, 100);
+                }
+                let endGpu = performance.now();
+                let gpuSpeed = (1000 / (endGpu - startGpu)).toFixed(2);
+
+                // **Sonuçları Göster**
+                resultsDiv.innerHTML = `
+                    <p>🖥️ CPU Hızı: ${cpuSpeed} işlem/saniye</p>
+                    <p>💾 RAM Hızı: ${ramSpeed} işlem/saniye</p>
+                    <p>🎨 Grafik İşleme Hızı: ${gpuSpeed} işlem/saniye</p>
+                `;
+            }, 100);
+        }
+    </script>
+</body>
+</html>
