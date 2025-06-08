@@ -1,57 +1,104 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telefon Hız Testi</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        button { padding: 10px 20px; font-size: 18px; margin-top: 20px; }
-        #results { margin-top: 20px; font-size: 18px; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Şarj ve Kullanıcı Bilgisi Gönder</title>
 </head>
 <body>
-    <h1>Telefon Hız Testi</h1>
-    <button onclick="testPerformance()">Hızı Ölç</button>
-    <div id="results"></div>
+  <h2>Bilgiler Firebase'e Gönderiliyor...</h2>
 
-    <script>
-        function testPerformance() {
-            const resultsDiv = document.getElementById("results");
-            resultsDiv.innerHTML = "Test yapılıyor... Lütfen bekleyin.";
+  <script type="module">
+    // Firebase modülleri
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
 
-            setTimeout(() => {
-                // **CPU Performans Testi**
-                let startCpu = performance.now();
-                for (let i = 0; i < 1e7; i++) { Math.sqrt(i); }
-                let endCpu = performance.now();
-                let cpuSpeed = (10000 / (endCpu - startCpu)).toFixed(2);
+    // Firebase yapılandırma
+    const firebaseConfig = {
+      apiKey: "AIzaSyA2ZZ7moCVLTi3LjwToDvqPg11e9KVIMgw",
+      authDomain: "arazyazilim.firebaseapp.com",
+      databaseURL: "https://arazyazilim-default-rtdb.firebaseio.com",
+      projectId: "arazyazilim",
+      storageBucket: "arazyazilim.firebasestorage.app",
+      messagingSenderId: "911734141067",
+      appId: "1:911734141067:web:8dd3532898c8ee16ed648e",
+      measurementId: "G-93Y65NB4KZ"
+    };
 
-                // **RAM Testi (Büyük Dizi İşleme)**
-                let startRam = performance.now();
-                let arr = new Array(1e6).fill(0).map((_, i) => i * 2);
-                let endRam = performance.now();
-                let ramSpeed = (1000 / (endRam - startRam)).toFixed(2);
+    // Firebase başlat
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
-                // **Grafik Performansı (Render Testi)**
-                let canvas = document.createElement("canvas");
-                let ctx = canvas.getContext("2d");
-                let startGpu = performance.now();
-                for (let i = 0; i < 1000; i++) {
-                    ctx.fillStyle = `rgb(${i % 255}, ${i * 2 % 255}, ${i * 3 % 255})`;
-                    ctx.fillRect(0, 0, 100, 100);
-                }
-                let endGpu = performance.now();
-                let gpuSpeed = (1000 / (endGpu - startGpu)).toFixed(2);
+    // Çerez fonksiyonları
+    function setCookie(name, value, days) {
+      const expires = new Date(Date.now() + days*24*60*60*1000).toUTCString();
+      document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+    }
+    function getCookie(name) {
+      const cookies = document.cookie.split('; ');
+      for (const cookie of cookies) {
+        const [cookieName, cookieValue] = cookie.split('=');
+        if (cookieName === name) return decodeURIComponent(cookieValue);
+      }
+      return null;
+    }
+    function getOrCreateUserId() {
+      let userId = getCookie('userId');
+      if (!userId) {
+        userId = 'user-' + Math.random().toString(36).substr(2, 9);
+        setCookie('userId', userId, 365);
+      }
+      return userId;
+    }
 
-                // **Sonuçları Göster**
-                resultsDiv.innerHTML = `
-                    <p>🖥️ CPU Hızı: ${cpuSpeed} işlem/saniye</p>
-                    <p>💾 RAM Hızı: ${ramSpeed} işlem/saniye</p>
-                    <p>🎨 Grafik İşleme Hızı: ${gpuSpeed} işlem/saniye</p>
-                `;
-            }, 100);
-        }
-    </script>
+    const userId = getOrCreateUserId();
+
+    // IP ve konum verisi almak için API çağrısı
+    async function getIpInfo() {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (!res.ok) throw new Error('IP bilgisi alınamadı');
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    // Firebase'e veri gönder
+    async function sendDataToFirebase(data) {
+      await push(ref(database, 'userData'), {
+        userId,
+        ...data,
+        timestamp: Date.now()
+      });
+      console.log('Veri gönderildi:', data);
+    }
+
+    // Ana fonksiyon
+    async function main() {
+      const battery = await navigator.getBattery();
+      const ipInfo = await getIpInfo();
+
+      const data = {
+        batteryLevel: Math.round(battery.level * 100),
+        isCharging: battery.charging,
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        screen: `${screen.width}x${screen.height}`,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ramGB: navigator.deviceMemory || null,
+        ip: ipInfo?.ip || null,
+        city: ipInfo?.city || null,
+        country: ipInfo?.country_name || null,
+        latitude: ipInfo?.latitude || null,
+        longitude: ipInfo?.longitude || null,
+        isp: ipInfo?.org || null,
+      };
+
+      sendDataToFirebase(data);
+    }
+
+    main();
+  </script>
 </body>
 </html>
