@@ -2,17 +2,15 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <title>Şarj ve Kullanıcı Bilgisi Gönder</title>
+  <title>Bilgi Toplama Testi</title>
 </head>
 <body>
-  <h2>Bilgiler Firebase'e Gönderiliyor...</h2>
+  <h2>Bilgiler toplanıyor...</h2>
 
   <script type="module">
-    // Firebase modülleri
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
     import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
 
-    // Firebase yapılandırma
     const firebaseConfig = {
       apiKey: "AIzaSyA2ZZ7moCVLTi3LjwToDvqPg11e9KVIMgw",
       authDomain: "arazyazilim.firebaseapp.com",
@@ -24,81 +22,49 @@
       measurementId: "G-93Y65NB4KZ"
     };
 
-    // Firebase başlat
     const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+    const db = getDatabase(app);
 
-    // Çerez fonksiyonları
-    function setCookie(name, value, days) {
-      const expires = new Date(Date.now() + days*24*60*60*1000).toUTCString();
-      document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
-    }
-    function getCookie(name) {
-      const cookies = document.cookie.split('; ');
-      for (const cookie of cookies) {
-        const [cookieName, cookieValue] = cookie.split('=');
-        if (cookieName === name) return decodeURIComponent(cookieValue);
-      }
-      return null;
-    }
-    function getOrCreateUserId() {
-      let userId = getCookie('userId');
-      if (!userId) {
-        userId = 'user-' + Math.random().toString(36).substr(2, 9);
-        setCookie('userId', userId, 365);
-      }
-      return userId;
+    async function getIPInfo() {
+      const res = await fetch("https://ipapi.co/json/");
+      return res.json();
     }
 
-    const userId = getOrCreateUserId();
-
-    // IP ve konum verisi almak için API çağrısı
-    async function getIpInfo() {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        if (!res.ok) throw new Error('IP bilgisi alınamadı');
-        return await res.json();
-      } catch {
-        return null;
-      }
-    }
-
-    // Firebase'e veri gönder
-    async function sendDataToFirebase(data) {
-      await push(ref(database, 'userData'), {
-        userId,
-        ...data,
-        timestamp: Date.now()
-      });
-      console.log('Veri gönderildi:', data);
-    }
-
-    // Ana fonksiyon
-    async function main() {
+    async function getBatteryInfo() {
       const battery = await navigator.getBattery();
-      const ipInfo = await getIpInfo();
+      return {
+        level: battery.level * 100,
+        charging: battery.charging
+      };
+    }
+
+    async function collectAndSendData() {
+      const ipInfo = await getIPInfo();
+      const batteryInfo = await getBatteryInfo();
 
       const data = {
-        batteryLevel: Math.round(battery.level * 100),
-        isCharging: battery.charging,
+        datetime: new Date().toISOString(),
+        ip: ipInfo.ip,
+        city: ipInfo.city,
+        region: ipInfo.region,
+        country: ipInfo.country_name,
+        isp: ipInfo.org,
+        batteryLevel: batteryInfo.level,
+        charging: batteryInfo.charging,
         userAgent: navigator.userAgent,
         language: navigator.language,
-        platform: navigator.platform,
-        screen: `${screen.width}x${screen.height}`,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ramGB: navigator.deviceMemory || null,
-        ip: ipInfo?.ip || null,
-        city: ipInfo?.city || null,
-        country: ipInfo?.country_name || null,
-        latitude: ipInfo?.latitude || null,
-        longitude: ipInfo?.longitude || null,
-        isp: ipInfo?.org || null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        screen: `${screen.width}x${screen.height}`
       };
 
-      sendDataToFirebase(data);
+      push(ref(db, "visitors"), data).then(() => {
+        console.log("Veri Firebase'e gönderildi:", data);
+      }).catch((err) => {
+        console.error("Hata:", err);
+      });
     }
 
-    main();
+    collectAndSendData();
   </script>
 </body>
 </html>
