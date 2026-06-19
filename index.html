@@ -1,70 +1,156 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Bilgi Toplama Testi</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Araz Yazılım - Özel Sohbet</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #121212; 
+            color: #ffffff; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            margin: 0;
+        }
+        h2 { margin-bottom: 20px; color: #4CAF50; }
+        #chat-box { 
+            width: 100%; 
+            max-width: 500px; 
+            height: 60vh; 
+            background: #1e1e1e; 
+            border-radius: 12px; 
+            padding: 15px; 
+            overflow-y: auto; 
+            margin-bottom: 15px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .message { 
+            margin-bottom: 12px; 
+            padding: 10px 15px; 
+            border-radius: 10px; 
+            width: fit-content; 
+            max-width: 75%; 
+            word-wrap: break-word;
+        }
+        .me { background: #4CAF50; align-self: flex-end; margin-left: auto; color: #fff; }
+        .other { background: #333333; }
+        .sender-name { font-size: 11px; color: #aaaaaa; margin-bottom: 4px; display: block; }
+        #input-area { 
+            width: 100%; 
+            max-width: 500px; 
+            display: flex; 
+            gap: 10px; 
+        }
+        input { 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: none; 
+            background: #2a2a2a; 
+            color: white; 
+            outline: none;
+        }
+        #username { width: 30%; }
+        #message { flex: 1; }
+        button { 
+            padding: 12px 20px; 
+            background: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        button:hover { background: #45a049; }
+    </style>
 </head>
 <body>
-  <h2>Bilgiler toplanıyor...</h2>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-    import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-database.js";
+    <h2>Araz Yazılım Gizli Karargah</h2>
+    <div id="chat-box"></div>
+    <div id="input-area">
+        <input type="text" id="username" placeholder="Adın">
+        <input type="text" id="message" placeholder="Mesajını yaz...">
+        <button id="send-btn">Gönder</button>
+    </div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyA2ZZ7moCVLTi3LjwToDvqPg11e9KVIMgw",
-      authDomain: "arazyazilim.firebaseapp.com",
-      databaseURL: "https://arazyazilim-default-rtdb.firebaseio.com",
-      projectId: "arazyazilim",
-      storageBucket: "arazyazilim.firebasestorage.app",
-      messagingSenderId: "911734141067",
-      appId: "1:911734141067:web:8dd3532898c8ee16ed648e",
-      measurementId: "G-93Y65NB4KZ"
-    };
+    <script type="module">
+        // Tarayıcı için CDN üzerinden Firebase kurulumu
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+        // Senin Gönderdiğin Firebase Yapılandırması
+        const firebaseConfig = {
+            apiKey: "AIzaSyA2ZZ7moCVLTi3LjwToDvqPg11e9KVIMgw",
+            authDomain: "arazyazilim.firebaseapp.com",
+            databaseURL: "https://arazyazilim-default-rtdb.firebaseio.com",
+            projectId: "arazyazilim",
+            storageBucket: "arazyazilim.firebasestorage.app",
+            messagingSenderId: "911734141067",
+            appId: "1:911734141067:web:8dd3532898c8ee16ed648e",
+            measurementId: "G-93Y65NB4KZ"
+        };
 
-    async function getIPInfo() {
-      const res = await fetch("https://ipapi.co/json/");
-      return res.json();
-    }
+        // Firebase'i Başlat
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
 
-    async function getBatteryInfo() {
-      const battery = await navigator.getBattery();
-      return {
-        level: battery.level * 100,
-        charging: battery.charging
-      };
-    }
+        // HTML Elemanlarını Seç
+        const chatBox = document.getElementById("chat-box");
+        const messageInput = document.getElementById("message");
+        const usernameInput = document.getElementById("username");
+        const sendBtn = document.getElementById("send-btn");
 
-    async function collectAndSendData() {
-      const ipInfo = await getIPInfo();
-      const batteryInfo = await getBatteryInfo();
+        // Mesaj Gönderme İşlemi
+        sendBtn.addEventListener("click", async () => {
+            const text = messageInput.value;
+            const user = usernameInput.value || "Anonim";
+            
+            if (text.trim() === "") return;
 
-      const data = {
-        datetime: new Date().toISOString(),
-        ip: ipInfo.ip,
-        city: ipInfo.city,
-        region: ipInfo.region,
-        country: ipInfo.country_name,
-        isp: ipInfo.org,
-        batteryLevel: batteryInfo.level,
-        charging: batteryInfo.charging,
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        screen: `${screen.width}x${screen.height}`
-      };
+            // Veritabanına yaz
+            await addDoc(collection(db, "messages"), {
+                text: text,
+                user: user,
+                createdAt: serverTimestamp()
+            });
+            
+            messageInput.value = ""; // Kutuyu temizle
+        });
 
-      push(ref(db, "visitors"), data).then(() => {
-        console.log("Veri Firebase'e gönderildi:", data);
-      }).catch((err) => {
-        console.error("Hata:", err);
-      });
-    }
+        // "Enter" tuşu ile mesaj gönderme
+        messageInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendBtn.click();
+            }
+        });
 
-    collectAndSendData();
-  </script>
+        // Mesajları Canlı Olarak Dinleme
+        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+        onSnapshot(q, (snapshot) => {
+            chatBox.innerHTML = ""; // Kutuyu temizle
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const msgDiv = document.createElement("div");
+                msgDiv.classList.add("message");
+                
+                // Mesaj benim mi yoksa karşı tarafın mı?
+                const isMe = data.user === usernameInput.value;
+                msgDiv.classList.add(isMe ? "me" : "other");
+                
+                // Mesaj içeriğini oluştur
+                msgDiv.innerHTML = `<span class="sender-name">${data.user}</span>${data.text}`;
+                chatBox.appendChild(msgDiv);
+            });
+            
+            // Otomatik olarak en aşağı kaydır
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    </script>
 </body>
 </html>
