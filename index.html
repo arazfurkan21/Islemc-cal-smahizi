@@ -120,7 +120,9 @@
                 createdAt: serverTimestamp()
             });
             
-            messageInput.value = ""; // Kutuyu temizle
+            // KUTUYU TEMİZLE VE İMLECİ ODAKLA
+            messageInput.value = ""; 
+            messageInput.focus(); 
         });
 
         // "Enter" tuşu ile mesaj gönderme
