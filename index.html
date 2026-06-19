@@ -1,227 +1,50 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Araz Yazılım - Karşılıklı Sohbet</title>
+    <title>Araz Yazılım - WhatsApp Tema</title>
     <style>
+        /* WhatsApp Karanlık Tema Renkleri */
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #121212; 
-            color: #ffffff; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 20px; 
-            margin: 0;
-        }
-        h2 { margin-bottom: 10px; color: #4CAF50; }
-        
-        /* Rol Seçim Alanı */
-        #role-area {
-            margin-bottom: 15px;
-            background: #1e1e1e;
-            padding: 10px 20px;
-            border-radius: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: #111b21; 
+            margin: 0; 
+            padding: 0;
             display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-        #guest-toggle {
-            cursor: pointer;
-            width: 18px;
-            height: 18px;
-            accent-color: #4CAF50;
-        }
-        #role-label {
-            font-size: 14px;
-            font-weight: bold;
-            color: #aaaaaa;
-            cursor: pointer;
-            user-select: none;
+            justify-content: center;
+            height: 100vh;
         }
 
-        #chat-box { 
-            width: 100%; 
-            max-width: 500px; 
-            height: 60vh; 
-            background: #1e1e1e; 
-            border-radius: 12px; 
-            padding: 15px; 
-            overflow-y: auto; 
-            margin-bottom: 15px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        #app-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
             display: flex;
             flex-direction: column;
+            background: #0b141a;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
-        .message { 
-            margin-bottom: 12px; 
-            padding: 10px 15px; 
-            border-radius: 10px; 
-            width: fit-content; 
-            max-width: 75%; 
-            word-wrap: break-word;
+
+        /* Üst Bilgi Çubuğu */
+        header {
+            background: #202c33;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
-        /* Sağ taraf (Benim mesajlarım) */
-        .me { background: #4CAF50; align-self: flex-end; margin-left: auto; color: #fff; }
-        /* Sol taraf (Karşı tarafın mesajları) */
-        .other { background: #333333; align-self: flex-start; margin-right: auto; color: #fff; }
-        
-        .sender-name { font-size: 11px; color: #aaaaaa; margin-bottom: 4px; display: block; }
-        
-        #input-area { 
-            width: 100%; 
-            max-width: 500px; 
-            display: flex; 
-            gap: 10px; 
-        }
-        input[type="text"] { 
-            padding: 12px; 
-            border-radius: 8px; 
-            border: none; 
-            background: #2a2a2a; 
-            color: white; 
-            outline: none;
-        }
-        #username { width: 30%; }
-        #message { flex: 1; }
-        button { 
-            padding: 12px 20px; 
-            background: #4CAF50; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
+        .avatar {
+            width: 40px;
+            height: 40px;
+            background: #00a884;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #111b21;
             font-weight: bold;
-            transition: 0.2s;
+            font-size: 18px;
         }
-        button:hover { background: #45a049; }
-    </style>
-</head>
-<body>
-
-    <h2>Araz Yazılım Gizli Karargah</h2>
-    
-    <div id="role-area">
-        <input type="checkbox" id="guest-toggle">
-        <label for="guest-toggle" id="role-label">Ben Misafirim (Karşı Taraf)</label>
-    </div>
-
-    <div id="chat-box"></div>
-    <div id="input-area">
-        <input type="text" id="username" value="Ev Sahibi" placeholder="Adın">
-        <input type="text" id="message" placeholder="Mesajını yaz...">
-        <button id="send-btn">Gönder</button>
-    </div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
-
-        // Firebase Yapılandırman
-        const firebaseConfig = {
-            apiKey: "AIzaSyA2ZZ7moCVLTi3LjwToDvqPg11e9KVIMgw",
-            authDomain: "arazyazilim.firebaseapp.com",
-            databaseURL: "https://arazyazilim-default-rtdb.firebaseio.com",
-            projectId: "arazyazilim",
-            storageBucket: "arazyazilim.firebasestorage.app",
-            messagingSenderId: "911734141067",
-            appId: "1:911734141067:web:8dd3532898c8ee16ed648e",
-            measurementId: "G-93Y65NB4KZ"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const db = getFirestore(app);
-
-        const chatBox = document.getElementById("chat-box");
-        const messageInput = document.getElementById("message");
-        const usernameInput = document.getElementById("username");
-        const sendBtn = document.getElementById("send-btn");
-        const guestToggle = document.getElementById("guest-toggle");
-
-        // Tuşa basıldığında ismi otomatik ayarla
-        guestToggle.addEventListener("change", () => {
-            if (guestToggle.checked) {
-                usernameInput.value = "Misafir";
-            } else {
-                usernameInput.value = "Ev Sahibi";
-            }
-            // Tuşa basıldığı an ekrandaki eski mesajların yönünü de canlı güncelle
-            guncelleMesajYonleri();
-        });
-
-        // Mesaj Gönderme İşlemi
-        sendBtn.addEventListener("click", async () => {
-            const text = messageInput.value;
-            const user = usernameInput.value || (guestToggle.checked ? "Misafir" : "Ev Sahibi");
-            const myRole = guestToggle.checked ? "guest" : "host"; // Rolü belirle
-            
-            if (text.trim() === "") return;
-
-            // Veritabanına rol bilgisiyle birlikte yazıyoruz
-            await addDoc(collection(db, "messages"), {
-                text: text,
-                user: user,
-                role: myRole, 
-                createdAt: serverTimestamp()
-            });
-            
-            messageInput.value = ""; 
-            messageInput.focus(); 
-        });
-
-        messageInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
-                sendBtn.click();
-            }
-        });
-
-        // Mesajları Canlı Okuma
-        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
-        onSnapshot(q, (snapshot) => {
-            chatBox.innerHTML = ""; 
-            
-            const localRole = guestToggle.checked ? "guest" : "host";
-
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                const msgDiv = document.createElement("div");
-                msgDiv.classList.add("message");
-                
-                // Firebase'den gelen rolü buraya kaydediyoruz ki sonradan yön değiştirebilsin
-                msgDiv.setAttribute("data-role", data.role || "host");
-                
-                // Mesajı atan kişiyle şu anki cihazın rolü aynı mı?
-                const isMe = (data.role || "host") === localRole;
-                msgDiv.classList.add(isMe ? "me" : "other");
-                
-                msgDiv.innerHTML = `<span class="sender-name">${data.user}</span>${data.text}`;
-                chatBox.appendChild(msgDiv);
-            });
-            
-            chatBox.scrollTop = chatBox.scrollHeight;
-        });
-
-        // "Ben Misafirim" tuşuna basınca sayfayı yenilemeden sağ-sol ayarını değiştiren fonksiyon
-        function guncelleMesajYonleri() {
-            const localRole = guestToggle.checked ? "guest" : "host";
-            const mesajlar = document.querySelectorAll(".message");
-            
-            mesajlar.forEach(msg => {
-                const msgRole = msg.getAttribute("data-role");
-                if (msgRole === localRole) {
-                    msg.classList.remove("other");
-                    msg.classList.add("me");
-                } else {
-                    msg.classList.remove("me");
-                    msg.classList.add("other");
-                }
-            });
-        }
-    </script>
-</body>
-</html>
+        .header-info { display: flex; flex-direction: column; }
+        .header-title { color: #e9edef
