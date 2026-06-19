@@ -47,4 +47,258 @@
             font-size: 18px;
         }
         .header-info { display: flex; flex-direction: column; }
-        .header-title { color: #e9edef
+        .header-title { color: #e9edef; font-size: 16px; font-weight: 500; }
+        .header-status { color: #8696a0; font-size: 13px; }
+
+        /* Rol Seçim Çubuğu (Misafir/Ev Sahibi) */
+        #role-area {
+            background: #182229;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid #313d45;
+        }
+        #guest-toggle {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+            accent-color: #00a884;
+        }
+        #role-label {
+            font-size: 13px;
+            color: #8696a0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Mesajlaşma Alanı ve Arka Plan Deseni */
+        #chat-box { 
+            flex: 1; 
+            padding: 20px 15px; 
+            overflow-y: auto; 
+            display: flex;
+            flex-direction: column;
+            background-color: #0b141a;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-size: contain;
+            background-attachment: fixed;
+        }
+        
+        /* Mesaj Balonları */
+        .message { 
+            margin-bottom: 12px; 
+            padding: 8px 12px; 
+            width: fit-content; 
+            max-width: 75%; 
+            word-wrap: break-word;
+            font-size: 14.5px;
+            position: relative;
+            line-height: 1.4;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+        }
+        
+        .me { 
+            background: #005c4b; 
+            align-self: flex-end; 
+            color: #e9edef; 
+            border-radius: 10px 0 10px 10px;
+        }
+        .other { 
+            background: #202c33; 
+            align-self: flex-start; 
+            color: #e9edef; 
+            border-radius: 0 10px 10px 10px;
+        }
+        
+        .sender-name { 
+            font-size: 12px; 
+            font-weight: 600;
+            margin-bottom: 4px; 
+            display: block; 
+        }
+        .me .sender-name { color: #53bdeb; } /* Ev Sahibi isminin rengi */
+        .other .sender-name { color: #f28b82; } /* Misafir isminin rengi */
+
+        /* Alt Yazma Alanı */
+        #input-area { 
+            background: #202c33; 
+            padding: 10px 15px; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        #username { 
+            width: 70px; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: none; 
+            background: #2a3942; 
+            color: #d1d7db; 
+            outline: none;
+            font-size: 14px;
+        }
+        #message { 
+            flex: 1; 
+            padding: 12px 15px; 
+            border-radius: 20px; 
+            border: none; 
+            background: #2a3942; 
+            color: #d1d7db; 
+            outline: none;
+            font-size: 15px;
+        }
+        #message::placeholder { color: #8696a0; }
+        
+        #send-btn { 
+            background: #00a884; 
+            color: #111b21; 
+            border: none; 
+            border-radius: 50%; 
+            width: 45px; 
+            height: 45px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            cursor: pointer; 
+            transition: 0.2s;
+        }
+        #send-btn:hover { background: #008f6f; }
+        #send-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            transform: translateX(-1px) translateY(1px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>
+            <div class="avatar">A</div>
+            <div class="header-info">
+                <span class="header-title">Araz Yazılım Karargah</span>
+                <span class="header-status">çevrimiçi</span>
+            </div>
+        </header>
+
+        <div id="role-area">
+            <div>
+                <input type="checkbox" id="guest-toggle">
+                <label for="guest-toggle" id="role-label">Ben Misafirim (Karşı Taraf)</label>
+            </div>
+        </div>
+
+        <div id="chat-box"></div>
+        
+        <div id="input-area">
+            <input type="text" id="username" value="Ev Sahibi" placeholder="Adın" title="İsmini buradan değiştirebilirsin">
+            <input type="text" id="message" placeholder="Bir mesaj yazın">
+            <button id="send-btn" title="Gönder">
+                <svg viewBox="0 0 24 24">
+                    <path d="M1.101 21.757 23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Firebase Yapılandırman
+        const firebaseConfig = {
+            apiKey: "AIzaSyA2ZZ7moCVLTi3LjwToDvqPg11e9KVIMgw",
+            authDomain: "arazyazilim.firebaseapp.com",
+            databaseURL: "https://arazyazilim-default-rtdb.firebaseio.com",
+            projectId: "arazyazilim",
+            storageBucket: "arazyazilim.firebasestorage.app",
+            messagingSenderId: "911734141067",
+            appId: "1:911734141067:web:8dd3532898c8ee16ed648e",
+            measurementId: "G-93Y65NB4KZ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const chatBox = document.getElementById("chat-box");
+        const messageInput = document.getElementById("message");
+        const usernameInput = document.getElementById("username");
+        const sendBtn = document.getElementById("send-btn");
+        const guestToggle = document.getElementById("guest-toggle");
+
+        guestToggle.addEventListener("change", () => {
+            if (guestToggle.checked) {
+                usernameInput.value = "Misafir";
+            } else {
+                usernameInput.value = "Ev Sahibi";
+            }
+            guncelleMesajYonleri();
+        });
+
+        sendBtn.addEventListener("click", async () => {
+            const text = messageInput.value;
+            const user = usernameInput.value || (guestToggle.checked ? "Misafir" : "Ev Sahibi");
+            const myRole = guestToggle.checked ? "guest" : "host"; 
+            
+            if (text.trim() === "") return;
+
+            await addDoc(collection(db, "messages"), {
+                text: text,
+                user: user,
+                role: myRole, 
+                createdAt: serverTimestamp()
+            });
+            
+            messageInput.value = ""; 
+            messageInput.focus(); 
+        });
+
+        messageInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendBtn.click();
+            }
+        });
+
+        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+        onSnapshot(q, (snapshot) => {
+            chatBox.innerHTML = ""; 
+            
+            const localRole = guestToggle.checked ? "guest" : "host";
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const msgDiv = document.createElement("div");
+                msgDiv.classList.add("message");
+                
+                msgDiv.setAttribute("data-role", data.role || "host");
+                
+                const isMe = (data.role || "host") === localRole;
+                msgDiv.classList.add(isMe ? "me" : "other");
+                
+                msgDiv.innerHTML = `<span class="sender-name">${data.user}</span>${data.text}`;
+                chatBox.appendChild(msgDiv);
+            });
+            
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        function guncelleMesajYonleri() {
+            const localRole = guestToggle.checked ? "guest" : "host";
+            const mesajlar = document.querySelectorAll(".message");
+            
+            mesajlar.forEach(msg => {
+                const msgRole = msg.getAttribute("data-role");
+                if (msgRole === localRole) {
+                    msg.classList.remove("other");
+                    msg.classList.add("me");
+                } else {
+                    msg.classList.remove("me");
+                    msg.classList.add("other");
+                }
+            });
+        }
+    </script>
+</body>
+</html>
