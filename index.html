@@ -98,17 +98,29 @@
             box-shadow: 0 1px 1px rgba(0,0,0,0.2);
         }
         
+        /* Medya (Foto/Video) Tasarımı */
+        .message img, .message video {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        /* Ev Sahibi SABİT SAĞDA */
         .me { 
             background: #005c4b; 
             align-self: flex-end; 
             color: #e9edef; 
             border-radius: 10px 0 10px 10px;
+            margin-left: auto;
         }
+        /* Misafir SABİT SOLDADA */
         .other { 
             background: #202c33; 
             align-self: flex-start; 
             color: #e9edef; 
             border-radius: 0 10px 10px 10px;
+            margin-right: auto;
         }
         
         .sender-name { 
@@ -117,8 +129,8 @@
             margin-bottom: 4px; 
             display: block; 
         }
-        .me .sender-name { color: #53bdeb; } /* Ev Sahibi isminin rengi */
-        .other .sender-name { color: #f28b82; } /* Misafir isminin rengi */
+        .me .sender-name { color: #53bdeb; } 
+        .other .sender-name { color: #f28b82; } 
 
         /* Alt Yazma Alanı */
         #input-area { 
@@ -129,15 +141,27 @@
             gap: 10px; 
         }
         #username { 
-            width: 70px; 
-            padding: 12px; 
-            border-radius: 8px; 
+            width: 0px; /* İsmi gizli tutuyoruz, zaten otomatik atanıyor */
+            padding: 0; 
             border: none; 
-            background: #2a3942; 
-            color: #d1d7db; 
-            outline: none;
-            font-size: 14px;
+            visibility: hidden;
         }
+        
+        /* Dosya Ekleme Butonu */
+        #attach-btn {
+            background: transparent;
+            border: none;
+            color: #8696a0;
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        #attach-btn:hover { color: #d1d7db; }
+        #file-input { display: none; }
+
         #message { 
             flex: 1; 
             padding: 12px 15px; 
@@ -193,7 +217,15 @@
         <div id="chat-box"></div>
         
         <div id="input-area">
-            <input type="text" id="username" value="Ev Sahibi" placeholder="Adın" title="İsmini buradan değiştirebilirsin">
+            <input type="text" id="username" value="Ev Sahibi" readonly>
+            
+            <button id="attach-btn" title="Dosya Ekle">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 0 0 3.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-1.594-1.592-4.068-1.711-5.517-.262l-7.916 7.915c-.881.881-.792 2.25.214 3.261.959.958 2.423 1.053 3.263.215l5.511-5.512c.28-.28.267-.722.053-.936l-.244-.244c-.191-.191-.567-.349-.957.04l-5.506 5.506c-.18.18-.635.127-.976-.214-.098-.097-.576-.613-.213-.973l7.915-7.917c.818-.817 2.267-.699 3.23.262.5.501.802 1.1.849 1.685.051.573-.156 1.111-.589 1.543l-9.547 9.549a3.97 3.97 0 0 1-2.829 1.171 3.975 3.975 0 0 1-2.83-1.173 3.973 3.973 0 0 1-1.172-2.828c0-1.071.415-2.076 1.172-2.83l7.209-7.211c.157-.157.264-.579.028-.814L11.5 4.36a.57.57 0 0 0-.834.018l-7.205 7.207a5.577 5.577 0 0 0-1.645 3.971z"></path>
+                </svg>
+            </button>
+            <input type="file" id="file-input" accept="image/*,video/*">
+
             <input type="text" id="message" placeholder="Bir mesaj yazın">
             <button id="send-btn" title="Gönder">
                 <svg viewBox="0 0 24 24">
@@ -206,6 +238,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // STORAGE (Depolama) Kütüphaneleri Eklendi
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
         // Firebase Yapılandırman
         const firebaseConfig = {
@@ -221,12 +255,16 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const storage = getStorage(app); // Storage Başlatıldı
 
         const chatBox = document.getElementById("chat-box");
         const messageInput = document.getElementById("message");
         const usernameInput = document.getElementById("username");
         const sendBtn = document.getElementById("send-btn");
         const guestToggle = document.getElementById("guest-toggle");
+        
+        const attachBtn = document.getElementById("attach-btn");
+        const fileInput = document.getElementById("file-input");
 
         guestToggle.addEventListener("change", () => {
             if (guestToggle.checked) {
@@ -234,12 +272,60 @@
             } else {
                 usernameInput.value = "Ev Sahibi";
             }
-            guncelleMesajYonleri();
         });
 
+        // ATAÇ İKONUNA TIKLAYINCA DOSYA SEÇİCİYİ AÇ
+        attachBtn.addEventListener("click", () => {
+            fileInput.click();
+        });
+
+        // DOSYA SEÇİLDİĞİNDE OTOMATİK YÜKLE VE MESAJ OLARAK AT
+        fileInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            messageInput.placeholder = "Medya yükleniyor, lütfen bekleyin...";
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+
+            try {
+                // Dosyayı Firebase Storage'a Yükle
+                const storageRef = ref(storage, 'medya/' + new Date().getTime() + '_' + file.name);
+                const uploadTask = await uploadBytesResumable(storageRef, file);
+                
+                // Yüklenen Dosyanın URL'sini Al
+                const downloadURL = await getDownloadURL(uploadTask.ref);
+
+                const user = usernameInput.value;
+                const myRole = guestToggle.checked ? "guest" : "host"; 
+
+                // Veritabanına Medya Linkiyle Birlikte Kaydet
+                await addDoc(collection(db, "messages"), {
+                    text: messageInput.value, // Varsa yazdığı metinle beraber atar
+                    fileUrl: downloadURL,
+                    fileType: file.type,
+                    user: user,
+                    role: myRole, 
+                    createdAt: serverTimestamp()
+                });
+
+                messageInput.value = ""; 
+            } catch (error) {
+                console.error("Dosya yükleme hatası:", error);
+                alert("Dosya yüklenemedi. Firebase Storage kurallarını açtığına emin ol!");
+            }
+
+            messageInput.placeholder = "Bir mesaj yazın";
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            fileInput.value = ""; // Seçimi sıfırla
+            messageInput.focus();
+        });
+
+        // NORMAL METİN MESAJI GÖNDERME
         sendBtn.addEventListener("click", async () => {
             const text = messageInput.value;
-            const user = usernameInput.value || (guestToggle.checked ? "Misafir" : "Ev Sahibi");
+            const user = usernameInput.value;
             const myRole = guestToggle.checked ? "guest" : "host"; 
             
             if (text.trim() === "") return;
@@ -256,49 +342,51 @@
         });
 
         messageInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !messageInput.disabled) {
                 sendBtn.click();
             }
         });
 
+        // MESAJLARI CANLI EKRANA YANSITMA
         const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
         onSnapshot(q, (snapshot) => {
             chatBox.innerHTML = ""; 
-            
-            const localRole = guestToggle.checked ? "guest" : "host";
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 const msgDiv = document.createElement("div");
                 msgDiv.classList.add("message");
                 
-                msgDiv.setAttribute("data-role", data.role || "host");
+                const msgRole = data.role || "host";
                 
-                const isMe = (data.role || "host") === localRole;
-                msgDiv.classList.add(isMe ? "me" : "other");
+                if (msgRole === "host") {
+                    msgDiv.classList.add("me");
+                } else {
+                    msgDiv.classList.add("other");
+                }
                 
-                msgDiv.innerHTML = `<span class="sender-name">${data.user}</span>${data.text}`;
+                let content = `<span class="sender-name">${data.user}</span>`;
+                
+                // EĞER MESAJDA FOTOĞRAF VEYA VİDEO VARSA EKRANA BASTIR
+                if (data.fileUrl) {
+                    if (data.fileType && data.fileType.startsWith("image/")) {
+                        content += `<img src="${data.fileUrl}" alt="Gönderilen Fotoğraf" />`;
+                    } else if (data.fileType && data.fileType.startsWith("video/")) {
+                        content += `<video controls src="${data.fileUrl}"></video>`;
+                    }
+                }
+                
+                // EĞER METİN VARSA ALTINA METNİ YAZ
+                if (data.text) {
+                    content += `<span>${data.text}</span>`;
+                }
+
+                msgDiv.innerHTML = content;
                 chatBox.appendChild(msgDiv);
             });
             
             chatBox.scrollTop = chatBox.scrollHeight;
         });
-
-        function guncelleMesajYonleri() {
-            const localRole = guestToggle.checked ? "guest" : "host";
-            const mesajlar = document.querySelectorAll(".message");
-            
-            mesajlar.forEach(msg => {
-                const msgRole = msg.getAttribute("data-role");
-                if (msgRole === localRole) {
-                    msg.classList.remove("other");
-                    msg.classList.add("me");
-                } else {
-                    msg.classList.remove("me");
-                    msg.classList.add("other");
-                }
-            });
-        }
     </script>
 </body>
 </html>
